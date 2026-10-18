@@ -357,6 +357,7 @@ export async function runPaymentFlow(options: PaymentFlowOptions): Promise<Payme
     });
     const transfer = transfers.find(
       (event) =>
+        event.address.toLowerCase() === USDC_ADDRESS.toLowerCase() &&
         isAddressEqual(event.args.from, getAddress(payer)) &&
         isAddressEqual(event.args.to, getAddress(accepted.payTo)) &&
         event.args.value === BigInt(accepted.amount),
