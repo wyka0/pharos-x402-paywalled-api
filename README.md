@@ -284,6 +284,33 @@ Limitations:
 - The official docs do not document a USDC faucet. Funding test USDC is an
   operator prerequisite; this project does not guess a faucet URL.
 
+### Concrete deployment shape
+
+Two services, built from the same commit:
+
+| Service | Build | Start | Required env |
+| --- | --- | --- | --- |
+| Facilitator | `npm ci && npm run build` | `node dist/src/facilitator/server.js` | `FACILITATOR_PRIVATE_KEY` or `_FILE`, `RPC_URL` |
+| Resource API | `npm ci && npm run build` | `node dist/src/resource/server.js` | `PAY_TO_ADDRESS`, `FACILITATOR_URL`, `TRUST_PROXY=true` |
+
+Health checks: `/health` on both services. The API's `FACILITATOR_URL` must be
+the facilitator's public HTTPS URL (for example
+`https://facilitator.example.com`). A minimal Caddy reverse proxy:
+
+```caddyfile
+api.example.com {
+  reverse_proxy 127.0.0.1:4021
+}
+facilitator.example.com {
+  reverse_proxy 127.0.0.1:4022
+}
+```
+
+Use the platform's secret manager for keys; do not bake `.env` into an image.
+Reviewers can then call `https://api.example.com/data`, receive the 402
+challenge, and use the payment client against that URL. Keep the deployment on
+Atlantic Testnet and monitor the facilitator's PHRS balance.
+
 ## Live payment evidence
 
 No live payment has been executed. `npm run demo` is deliberately blocked
