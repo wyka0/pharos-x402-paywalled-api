@@ -25,7 +25,8 @@ The registry token is an upgradeable proxy. Its implementation at
 `0x02C3FE2d1700814Ec27da9E447F7957329C96126` contains the EIP-3009
 `transferWithAuthorization`, `receiveWithAuthorization`, and
 `authorizationState` entry points. `npm run verify:network` records the
-read-only proof.
+read-only proof. The token can be inspected at
+[PharosScan](https://atlantic.pharosscan.xyz/address/0xcfC8330f4BCAB529c625D12781b1C19466A9Fc8B).
 
 The x402 guide also mentions `0xE0BE08c77f415F577A1B3A9aD7a1Df1479564ec8` but
 explicitly says it is **not an official address**. That contract exposes no

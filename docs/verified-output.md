@@ -144,6 +144,9 @@ The other address mentioned in the x402 guide,
 official address" there. It exposes no EIP-3009 functions, so it cannot settle
 with the `exact` scheme. It is rejected by this project's configuration guard.
 
+Token page (address, not a transaction):
+<https://atlantic.pharosscan.xyz/address/0xcfC8330f4BCAB529c625D12781b1C19466A9Fc8B>
+
 ## 4. Local end-to-end demo (no chain)
 
 Command:
