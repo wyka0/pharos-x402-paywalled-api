@@ -1,0 +1,23 @@
+{
+  "x402Version": 2,
+  "error": "Payment required",
+  "resource": {
+    "url": "http://127.0.0.1:4121/api/info",
+    "description": "Low-cost API information endpoint ($0.005 test USDC per request)",
+    "mimeType": "application/json"
+  },
+  "accepts": [
+    {
+      "scheme": "exact",
+      "network": "eip155:688689",
+      "amount": "5000",
+      "asset": "0xcfC8330f4BCAB529c625D12781b1C19466A9Fc8B",
+      "payTo": "0x1111111111111111111111111111111111111111",
+      "maxTimeoutSeconds": 120,
+      "extra": {
+        "name": "USDC",
+        "version": "2"
+      }
+    }
+  ]
+}

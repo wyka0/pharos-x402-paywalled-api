@@ -1,0 +1,29 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Secrets - never commit these
+.env
+.env.*
+!.env.example
+.secrets/
+.private_key
+*.private-key
+*.private_key
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+secrets/
+
+# Logs and OS noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/

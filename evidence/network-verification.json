@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-10-18T00:32:19.804Z",
+  "rpcUrl": "https://atlantic.dplabs-internal.com",
+  "network": "eip155:688689",
+  "expectedChainId": 688689,
+  "observedChainId": 688689,
+  "chainMatches": true,
+  "blockNumber": "31555476",
+  "token": {
+    "address": "0xcfC8330f4BCAB529c625D12781b1C19466A9Fc8B",
+    "name": "USDC",
+    "symbol": "USDC",
+    "version": "2",
+    "decimals": 6,
+    "totalSupplyAtomic": "100108337947829",
+    "registrySource": "https://docs.pharos.xyz/getting-started/token-registry",
+    "proxyCodeSizeBytes": 1798,
+    "implementation": "0x02C3FE2d1700814Ec27da9E447F7957329C96126",
+    "implementationCodeSizeBytes": 23464,
+    "expected": {
+      "name": "USDC",
+      "version": "2",
+      "decimals": 6
+    }
+  },
+  "eip3009Selectors": {
+    "transferWithAuthorization": true,
+    "receiveWithAuthorization": true,
+    "authorizationState": true,
+    "permit": true
+  },
+  "note": "Read-only RPC checks against the proxy and its implementation. No transaction was broadcast."
+}

@@ -1,0 +1,32 @@
+{
+  "mode": "local-stub",
+  "onChain": false,
+  "warning": "No transaction was broadcast. The transaction hashes below come from an in-memory test signer and are NOT blockchain evidence.",
+  "executedAt": "2026-10-18T00:28:28.067Z",
+  "network": "eip155:688689",
+  "chainId": 688689,
+  "payTo": "0x36FC8db72205286A2C606DA5BE91d9D9c7E63F3a",
+  "facilitatorSigner": "0xc339FF58a0449624396C23205FdcA91100E4d606",
+  "routes": [
+    {
+      "route": "/data",
+      "payer": "0x7a01cFFda1cC2279C810c94ad1AF59E9EBbe421e",
+      "priceAtomic": "10000",
+      "priceAsset": "0xcfC8330f4BCAB529c625D12781b1C19466A9Fc8B",
+      "responseStatus": 200,
+      "settlementSuccess": true,
+      "stubTransaction": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "onChain": false
+    },
+    {
+      "route": "/api/info",
+      "payer": "0x7a01cFFda1cC2279C810c94ad1AF59E9EBbe421e",
+      "priceAtomic": "5000",
+      "priceAsset": "0xcfC8330f4BCAB529c625D12781b1C19466A9Fc8B",
+      "responseStatus": 200,
+      "settlementSuccess": true,
+      "stubTransaction": "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "onChain": false
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+
+ RUN  v4.1.12 C:/pharos-x402-paywalled-api
+
+ Γ£ô test/resource.test.ts > free health endpoint > returns HTTP 200 without a payment challenge 15ms
+ Γ£ô test/resource.test.ts > unpaid requests > returns HTTP 402 with valid machine-readable requirements for /data 24ms
+ Γ£ô test/resource.test.ts > unpaid requests > returns the lower $0.005 price for /api/info 6ms
+ Γ£ô test/resource.test.ts > unpaid requests > rejects a malformed payment header with HTTP 402 and no data 8ms
+ Γ£ô test/facilitator.test.ts > GET /supported > advertises exact on eip155:688689 and the facilitator signer 55ms
+ Γ£ô test/facilitator.test.ts > facilitator /health > reports the network, asset, and signer without secrets 23ms
+ Γ£ô test/facilitator.test.ts > POST /verify request validation > rejects a structurally invalid envelope with HTTP 400 45ms
+ Γ£ô test/facilitator.test.ts > POST /verify request validation > rejects malformed JSON with HTTP 400 20ms
+ Γ£ô test/resource.test.ts > valid payments > returns protected data and a real settlement receipt for /data 190ms
+ Γ£ô test/resource.test.ts > valid payments > returns the protected info payload for /api/info at the lower price 52ms
+ Γ£ô test/flow.test.ts > official x402 fetch client flow (local stub) > discovers 402, signs, retries, settles, and decodes the receipt for /data 208ms
+ Γ£ô test/flow.test.ts > official x402 fetch client flow (local stub) > pays the distinct $0.005 price on /api/info 41ms
+ Γ£ô test/flow.test.ts > official x402 fetch client flow (local stub) > rejects an unknown demo route before signing 3ms
+ Γ£ô test/facilitator.test.ts > POST /verify request validation > rejects an unsupported x402 version 31ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > accepts a valid, correctly priced authorization without settling 40ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects an invalid signature 22ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects an underpaid authorization 17ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects the wrong recipient 20ms
+ Γ£ô test/resource.test.ts > valid payments > does not settle the same authorization twice when the header is replayed 53ms
+ Γ£ô test/resource.test.ts > invalid and underpaid payments > rejects an underpaid authorization and exposes no data 21ms
+ Γ£ô test/resource.test.ts > invalid and underpaid payments > rejects the wrong recipient 23ms
+ Γ£ô test/resource.test.ts > invalid and underpaid payments > rejects a payload for the wrong network 7ms
+ Γ£ô test/resource.test.ts > invalid and underpaid payments > rejects an expired authorization 22ms
+ Γ£ô test/resource.test.ts > invalid and underpaid payments > rejects an invalid signature 10ms
+ Γ£ô test/resource.test.ts > routing > returns a JSON 404 for unknown free paths 3ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects an unsupported network in the requirements 12ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects a payload whose accepted network does not match the requirements 13ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects an expired authorization 16ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects a not-yet-valid authorization 16ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects an unsupported asset, scheme, and EIP-712 domain 17ms
+ Γ£ô test/facilitator.test.ts > POST /verify payment checks > rejects a replayed nonce after a successful settlement 37ms
+ Γ£ô test/facilitator.test.ts > POST /settle > rejects a malformed envelope with HTTP 400 4ms
+ Γ£ô test/facilitator.test.ts > POST /settle > returns success=false with an empty transaction for an invalid signature 14ms
+ Γ£ô test/facilitator.test.ts > POST /settle > returns the real settlement transaction hash from the scheme 16ms
+ Γ£ô test/facilitator.test.ts > POST /settle > does not settle twice when the same body is retried 17ms
+ Γ£ô test/facilitator.test.ts > POST /settle > allows a retry after a transient settlement failure and does not cache it 25ms
+ Γ£ô test/facilitator.test.ts > POST /settle > never reports success for an unsupported network 6ms
+ Γ£ô test/facilitator.test.ts > payment header encoding helper > encodes a v2 payment payload 3ms
+ Γ£ô test/security.test.ts > secret hygiene > contains no hardcoded private keys or PEM key blocks in src/ 17ms
+ Γ£ô test/security.test.ts > secret hygiene > ignores environment files, local key files, and secret directories 1ms
+ Γ£ô test/security.test.ts > secret hygiene > ships only placeholders in .env.example 1ms
+ Γ£ô test/security.test.ts > secret hygiene > keeps the live-payment approval gate in the client 1ms
+ Γ£ô test/amounts.test.ts > USDC amount conversion > converts $0.01 to 10,000 atomic USDC units 4ms
+ Γ£ô test/amounts.test.ts > USDC amount conversion > converts $0.005 to 5,000 atomic USDC units 4ms
+ Γ£ô test/amounts.test.ts > USDC amount conversion > would be wrong with 18 native-token decimals, which is why the code is explicit 3ms
+ Γ£ô test/amounts.test.ts > USDC amount conversion > rejects negative, scientific, and over-precision amounts 3ms
+ Γ£ô test/amounts.test.ts > USDC amount conversion > formats atomic amounts for humans 2ms
+ Γ£ô test/amounts.test.ts > USDC amount conversion > rejects zero or non-integer route prices 1ms
+ Γ£ô test/amounts.test.ts > route pricing > defines exactly the two required prices 1ms
+ Γ£ô test/amounts.test.ts > route pricing > rejects unknown routes 1ms
+ Γ£ô test/amounts.test.ts > route pricing > uses the SDK money parser to produce USDC asset and domain 13ms
+ Γ£ô test/amounts.test.ts > route pricing > passes the startup pricing assertion for both routes 5ms
+ Γ£ô test/amounts.test.ts > route pricing > fails startup when the USDC parser is missing (no silent mainnet/default fallback) 10ms
+ Γ£ô test/config.test.ts > resource API configuration > loads a valid local configuration and checksums the address 8ms
+ Γ£ô test/config.test.ts > resource API configuration > fails clearly when PAY_TO_ADDRESS is missing 2ms
+ Γ£ô test/config.test.ts > resource API configuration > rejects malformed and zero addresses 1ms
+ Γ£ô test/config.test.ts > resource API configuration > fails clearly when FACILITATOR_URL is missing or invalid 5ms
+ Γ£ô test/config.test.ts > resource API configuration > rejects a mainnet network identifier 1ms
+ Γ£ô test/config.test.ts > resource API configuration > rejects a mainnet chain ID 1ms
+ Γ£ô test/config.test.ts > resource API configuration > rejects a substituted USDC contract 1ms
+ Γ£ô test/config.test.ts > resource API configuration > rejects 18 decimals for USDC 1ms
+ Γ£ô test/config.test.ts > resource API configuration > validates ports, timeouts, and proxy flags 1ms
+ Γ£ô test/config.test.ts > facilitator configuration > loads an inline testnet key and defaults 1ms
+ Γ£ô test/config.test.ts > facilitator configuration > loads a key from an ignored file 79ms
+ Γ£ô test/config.test.ts > facilitator configuration > fails when neither key source is set 1ms
+ Γ£ô test/config.test.ts > facilitator configuration > fails when both key sources are set 1ms
+ Γ£ô test/config.test.ts > facilitator configuration > rejects an invalid key without echoing it 1ms
+ Γ£ô test/config.test.ts > facilitator configuration > fails clearly when the key file is missing 1ms
+ Γ£ô test/config.test.ts > payer configuration and live-payment gate > defaults to the local API and refuses live payments 3ms
+ Γ£ô test/config.test.ts > payer configuration and live-payment gate > accepts explicit approval and a route 1ms
+ Γ£ô test/config.test.ts > payer configuration and live-payment gate > rejects a route that is not a path 1ms
+ Γ£ô test/config.test.ts > payer configuration and live-payment gate > never includes the key in startup error text 0ms
+ Γ£ô test/network.test.ts > verified Pharos Atlantic network constants > uses the required CAIP-2 identifier and chain ID 5ms
+ Γ£ô test/network.test.ts > verified Pharos Atlantic network constants > uses the official Token Registry test USDC and 6 ERC-20 decimals 2ms
+ Γ£ô test/network.test.ts > verified Pharos Atlantic network constants > keeps native gas decimals separate from ERC-20 decimals 2ms
+ Γ£ô test/network.test.ts > verified Pharos Atlantic network constants > defines the Atlantic chain without a mainnet fallback 1ms
+ Γ£ô test/network.test.ts > verified Pharos Atlantic network constants > builds explorer transaction links only from a real 32-byte hash 3ms
+ Γ£ô test/network.test.ts > verified Pharos Atlantic network constants > builds explorer address links only from a 20-byte address 1ms
+ Γ£ô test/onchain.test.ts > on-chain startup validation > accepts the verified Atlantic USDC metadata 6ms
+ Γ£ô test/onchain.test.ts > on-chain startup validation > rejects a mainnet RPC 2ms
+ Γ£ô test/onchain.test.ts > on-chain startup validation > rejects an address with no contract code 2ms
+ Γ£ô test/onchain.test.ts > on-chain startup validation > rejects wrong name, version, or decimals 2ms
+ Γ£ô test/onchain.test.ts > on-chain startup validation > reports every mismatch at once 3ms
+
+ Test Files  8 passed (8)
+      Tests  83 passed (83)
+   Start at  06:09:01
+   Duration  8.10s (transform 1.92s, setup 0ms, import 14.25s, tests 2.24s, environment 2ms)
