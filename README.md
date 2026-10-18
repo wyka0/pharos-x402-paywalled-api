@@ -170,6 +170,11 @@ variable are set, startup fails.
 - The client configures the SDK spend controls to allow only the verified
   Atlantic USDC, with a `0.10` USDC per-payment cap (`MAX_PAYMENT_ATOMIC`).
 
+For least privilege, run each component with only its own variables: the
+resource API needs no private key, the facilitator needs only
+`FACILITATOR_*`, and the client needs only `PAYER_*`. Use separate process
+environments or secret scopes in production rather than one shared `.env`.
+
 ## Commands
 
 | Purpose | Command |

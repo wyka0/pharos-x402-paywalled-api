@@ -1,0 +1,13 @@
+
+> pharos-x402-paywalled-api@1.0.0 start:facilitator
+> tsx src/facilitator/server.ts
+
+node.exe : Facilitator startup failed:
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Facilitator startup failed::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Invalid configuration:
+  - facilitator signer: set FACILITATOR_PRIVATE_KEY or FACILITATOR_PRIVATE_KEY_FILE

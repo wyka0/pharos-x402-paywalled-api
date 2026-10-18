@@ -1,0 +1,14 @@
+
+> pharos-x402-paywalled-api@1.0.0 start:api
+> tsx src/resource/server.ts
+
+node.exe : Resource API startup failed:
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Resource API startup failed::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Invalid configuration:
+  - PAY_TO_ADDRESS: is required
+  - FACILITATOR_URL: is required

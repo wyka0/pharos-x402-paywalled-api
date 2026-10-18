@@ -256,6 +256,7 @@ Use:
 - `evidence/live-gate.txt` for the explicit live-payment opt-in;
 - `evidence/facilitator-health.json`, `facilitator-supported.json`, and the
   `*-402-decoded.json` files for the real startup/HTTP behavior;
+- `evidence/startup-*.txt` for fail-fast configuration behavior;
 - a future `evidence/live-*.json` only after a real receipt exists.
 
 Do not cite the local stub transaction hashes as on-chain transactions.

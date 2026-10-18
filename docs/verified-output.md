@@ -44,6 +44,25 @@ Captured files:
 - `evidence/build.txt`
 - `evidence/test-results.txt`
 
+### Startup fail-fast
+
+With no environment configured, both services exit code 1 with specific
+messages (captured in `evidence/startup-api-missing-config.txt` and
+`evidence/startup-facilitator-missing-config.txt`):
+
+```text
+Resource API startup failed:
+Invalid configuration:
+  - PAY_TO_ADDRESS: is required
+  - FACILITATOR_URL: is required
+
+Facilitator startup failed:
+Invalid configuration:
+  - facilitator signer: set FACILITATOR_PRIVATE_KEY or FACILITATOR_PRIVATE_KEY_FILE
+```
+
+No mainnet or mock fallback was used.
+
 ## 2. Automated test result
 
 ```text
@@ -349,6 +368,8 @@ Until then, the live requirements remain **unproven**.
 | `evidence/local-demo.txt` | Local end-to-end transcript (labelled stub) |
 | `evidence/local-demo.json` | Local summary (labelled `onChain: false`) |
 | `evidence/live-gate.txt` | Proof the live client refuses to sign without approval |
+| `evidence/startup-api-missing-config.txt` | API fail-fast with no configuration |
+| `evidence/startup-facilitator-missing-config.txt` | Facilitator fail-fast with no key |
 
 ## 9. Honest limitations
 
