@@ -26,9 +26,11 @@ import {
   registerUsdcMoneyParser,
   ROUTE_DEFINITIONS,
 } from "./pricing.js";
+import { createPaymentDemoRouter, type PaymentDemoDependencies } from "./demo-route.js";
 
 export interface ResourceAppOptions extends ResourceConfig {
   logger?: Logger;
+  paymentDemo?: PaymentDemoDependencies;
 }
 
 /**
@@ -64,6 +66,16 @@ export async function createResourceApp(options: ResourceAppOptions): Promise<ex
   app.disable("x-powered-by");
   app.set("trust proxy", options.trustProxy);
   app.use(express.json({ limit: "64kb", strict: true }));
+
+  // Additive, opt-in, server-side payment demo. Never behind payment middleware:
+  // the demo itself drives the unpaid -> 402 -> paid sequence internally.
+  app.use(
+    "/demo",
+    createPaymentDemoRouter(options, {
+      ...options.paymentDemo,
+      logger,
+    }),
+  );
 
   app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json({

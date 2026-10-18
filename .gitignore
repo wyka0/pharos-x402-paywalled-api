@@ -3,6 +3,10 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+.next/
+web/.next/
+web/out/
+web/.turbo/
 
 # Secrets - never commit these
 .env

@@ -33,6 +33,13 @@ export interface ResourceConfig {
   readonly port: number;
   readonly trustProxy: boolean;
   readonly facilitatorTimeoutMs: number;
+  /**
+   * Opt-in server-side payment demo. Disabled unless explicitly enabled.
+   * The approval token is not a signing key; it is a second, manual gate.
+   */
+  readonly paymentDemoEnabled?: boolean;
+  readonly paymentDemoApprovalToken?: string;
+  readonly paymentDemoApiUrl?: string;
 }
 
 export interface FacilitatorConfig {
@@ -236,6 +243,30 @@ export function loadResourceConfig(env: Env = process.env): ResourceConfig {
     issues,
   );
 
+  const paymentDemoEnabled = parseBoolean(env, "PAYMENT_DEMO_ENABLED", false, issues);
+  const paymentDemoApprovalToken = readOptional(env, "PAYMENT_DEMO_APPROVAL_TOKEN");
+  const paymentDemoApiUrl = parseHttpUrl(
+    readOptional(env, "PAYMENT_DEMO_API_URL"),
+    "PAYMENT_DEMO_API_URL",
+    `http://127.0.0.1:${port}`,
+    issues,
+  );
+
+  if (paymentDemoEnabled) {
+    if (paymentDemoApprovalToken === undefined) {
+      issues.push(
+        "PAYMENT_DEMO_APPROVAL_TOKEN: required when PAYMENT_DEMO_ENABLED=YES (use a random value of at least 16 characters)",
+      );
+    } else if (paymentDemoApprovalToken.length < 16) {
+      issues.push("PAYMENT_DEMO_APPROVAL_TOKEN: must be at least 16 characters");
+    }
+    if (readOptional(env, "LIVE_PAYMENT_APPROVED")?.toUpperCase() !== "YES") {
+      issues.push(
+        "LIVE_PAYMENT_APPROVED: must be exactly YES when PAYMENT_DEMO_ENABLED=YES (this is the broadcast approval)",
+      );
+    }
+  }
+
   if (issues.length > 0 || payTo === undefined) {
     throw new ConfigError(issues);
   }
@@ -246,7 +277,31 @@ export function loadResourceConfig(env: Env = process.env): ResourceConfig {
     port,
     trustProxy,
     facilitatorTimeoutMs,
+    paymentDemoEnabled,
+    ...(paymentDemoApprovalToken ? { paymentDemoApprovalToken } : {}),
+    paymentDemoApiUrl,
   };
+}
+
+/**
+ * Startup check for the opt-in demo. It requires a valid payer key and the
+ * explicit approval flag before the API will expose a payment action. The key
+ * remains server-side; only the approval token is ever entered in the browser.
+ */
+export function assertPaymentDemoReady(
+  config: ResourceConfig,
+  env: Env = process.env,
+): void {
+  if (!config.paymentDemoEnabled) {
+    return;
+  }
+  if (!config.paymentDemoApprovalToken) {
+    throw new ConfigError([
+      "PAYMENT_DEMO_APPROVAL_TOKEN: required when PAYMENT_DEMO_ENABLED=YES",
+    ]);
+  }
+  const payer = loadPayerConfig(env);
+  assertLivePaymentApproved(payer);
 }
 
 /**

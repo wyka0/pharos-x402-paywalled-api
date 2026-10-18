@@ -46,3 +46,29 @@ describe("secret hygiene", () => {
     expect(demo).toContain("Nothing was signed. Nothing was broadcast.");
   });
 });
+
+describe("web UI secret hygiene", () => {
+  function webSourceFiles(dir: string): string[] {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    return entries.flatMap((entry) => {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return entry.name === "node_modules" || entry.name === ".next" ? [] : webSourceFiles(full);
+      }
+      return /\.(ts|tsx|mjs|json)$/.test(entry.name) ? [full] : [];
+    });
+  }
+
+  it("contains no private-key material anywhere in web/ source", () => {
+    const files = webSourceFiles(join(process.cwd(), "web"));
+    expect(files.length).toBeGreaterThan(50);
+    for (const file of files) {
+      const content = readFileSync(file, "utf8");
+      expect(content).not.toMatch(/0x[0-9a-fA-F]{64}\b/);
+      expect(content).not.toMatch(/-----BEGIN [A-Z ]*PRIVATE KEY-----/);
+      expect(content).not.toMatch(
+        /(?:PRIVATE_KEY|MNEMONIC|SECRET)\s*[:=]\s*["'`]?0x[0-9a-fA-F]{64}/,
+      );
+    }
+  });
+});

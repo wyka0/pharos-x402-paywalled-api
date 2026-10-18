@@ -324,6 +324,33 @@ describe("POST /settle", () => {
     expect(stack.stub.writes).toHaveLength(1);
   });
 
+  it("reports an unknown transaction outcome honestly and reconciles the retry", async () => {
+    const requirements = buildRequirements(stack.payTo);
+    const payload = await signPayment(stack.payer, requirements);
+    const body = envelope(payload, requirements);
+
+    const originalWait = stack.stub.signer.waitForTransactionReceipt;
+    stack.stub.signer.waitForTransactionReceipt = async () => {
+      throw new Error("eth_getTransactionReceipt timed out");
+    };
+    try {
+      const first = await post("/settle", body);
+      expect(first.status).toBe(200);
+      expect(first.json.success).toBe(false);
+      expect(first.json.errorReason).toBe("settlement_pending");
+      expect(first.json.transaction).toMatch(/^0x[0-9a-f]{64}$/);
+      expect(stack.stub.writes).toHaveLength(1);
+
+      const second = await post("/settle", body);
+      expect(second.status).toBe(200);
+      expect(second.json.success).toBe(false);
+      expect(second.json.transaction).toBe(first.json.transaction);
+      expect(stack.stub.writes).toHaveLength(1);
+    } finally {
+      stack.stub.signer.waitForTransactionReceipt = originalWait;
+    }
+  });
+
   it("never reports success for an unsupported network", async () => {
     const requirements = buildRequirements(stack.payTo, { network: "eip155:1" });
     const payload = await signPayment(stack.payer, requirements);

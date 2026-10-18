@@ -1,5 +1,10 @@
 import { config as loadEnv } from "dotenv";
-import { ConfigError, formatStartupError, loadResourceConfig } from "../config.js";
+import {
+  assertPaymentDemoReady,
+  ConfigError,
+  formatStartupError,
+  loadResourceConfig,
+} from "../config.js";
 import { consoleLogger, errorMessage } from "../logging.js";
 import { CHAIN_ID, NETWORK, NETWORK_NAME, USDC_ADDRESS, USDC_DECIMALS } from "../network.js";
 import { createResourceApp } from "./app.js";
@@ -11,6 +16,7 @@ async function main(): Promise<void> {
   let config;
   try {
     config = loadResourceConfig();
+    assertPaymentDemoReady(config);
   } catch (error) {
     console.error("Resource API startup failed:");
     console.error(formatStartupError(error));
@@ -47,6 +53,8 @@ async function main(): Promise<void> {
       assetDecimals: USDC_DECIMALS,
       payTo: config.payTo,
       facilitatorUrl: config.facilitatorUrl,
+      paymentDemoEnabled: config.paymentDemoEnabled === true,
+      paymentDemoApiUrl: config.paymentDemoApiUrl,
       prices: Object.fromEntries(
         Object.entries(ROUTE_DEFINITIONS).map(([path, definition]) => [
           path,

@@ -21,6 +21,13 @@
     "demo": "tsx src/client/demo.ts",
     "demo:local": "tsx scripts/local-demo.ts",
     "verify:network": "tsx scripts/verify-network.ts",
+    "ui:install": "npm --prefix web install",
+    "ui:dev": "npm --prefix web run dev",
+    "ui:build": "npm --prefix web run build",
+    "ui:start": "npm --prefix web run start",
+    "ui:lint": "npm --prefix web run lint",
+    "ui:typecheck": "npm --prefix web run typecheck",
+    "check:ui": "npm run ui:typecheck && npm run ui:lint && npm run ui:build",
     "start:facilitator:prod": "node dist/src/facilitator/server.js",
     "start:api:prod": "node dist/src/resource/server.js"
   },

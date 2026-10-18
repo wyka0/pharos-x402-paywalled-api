@@ -1,0 +1,51 @@
+
+> pharos-x402-paywalled-api-web@1.0.0 build
+> next build
+
+node.exe : [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline
+data, please update: `npm i baseline-browser-mapping@latest -D`
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([baseline-brows...ping@latest -D`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+   Γû▓ Next.js 16.0.10 (Turbopack)
+
+   Creating an optimized production build ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please
+update: `npm i baseline-browser-mapping@latest -D`
+ Γ£ô Compiled successfully in 10.1s
+   Running TypeScript ...
+   Collecting page data using 3 workers ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please
+update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please
+update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please
+update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 3 workers (0/9) ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please
+update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 3 workers (2/9)
+   Generating static pages using 3 workers (4/9)
+   Generating static pages using 3 workers (6/9)
+ Γ£ô Generating static pages using 3 workers (9/9) in 1991.6ms
+   Finalizing page optimization ...
+
+Route (app)
+Γöî Γùï /
+Γö£ Γùï /_not-found
+Γö£ ╞Æ /api/facilitator/status
+Γö£ ╞Æ /api/x402/[endpoint]
+Γö£ ╞Æ /api/x402/demo-payment
+Γö£ Γùï /docs
+Γö£ Γùï /endpoints
+Γö£ ╞Æ /explorer
+Γö£ Γùï /facilitator
+Γö£ Γùï /icon.svg
+Γöö Γùï /proof
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand

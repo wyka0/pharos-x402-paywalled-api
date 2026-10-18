@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   ConfigError,
   assertLivePaymentApproved,
+  assertPaymentDemoReady,
   formatStartupError,
   loadFacilitatorConfig,
   loadPayerConfig,
@@ -210,5 +211,98 @@ describe("payer configuration and live-payment gate", () => {
     const configError = new ConfigError(["payer wallet: invalid"]);
     expect(formatStartupError(configError)).toContain("payer wallet");
     expect(formatStartupError(configError)).not.toContain(key);
+  });
+});
+
+describe("gated payment demo configuration", () => {
+  const demoKey = generatePrivateKey();
+  const demoToken = "demo-approval-token-123456";
+
+  it("is disabled by default and does not require a token or payer key", () => {
+    const config = loadResourceConfig(validResourceEnv());
+    expect(config.paymentDemoEnabled).toBe(false);
+    expect(config.paymentDemoApprovalToken).toBeUndefined();
+    expect(config.paymentDemoApiUrl).toBe("http://127.0.0.1:4021");
+    expect(() => assertPaymentDemoReady(config, validResourceEnv())).not.toThrow();
+  });
+
+  it("requires an approval token when enabled", () => {
+    const issues = issuesOf(() =>
+      loadResourceConfig({
+        ...validResourceEnv(),
+        PAYMENT_DEMO_ENABLED: "YES",
+        LIVE_PAYMENT_APPROVED: "YES",
+      }),
+    );
+    expect(issues.join()).toContain("PAYMENT_DEMO_APPROVAL_TOKEN");
+  });
+
+  it("requires a token of at least 16 characters", () => {
+    const issues = issuesOf(() =>
+      loadResourceConfig({
+        ...validResourceEnv(),
+        PAYMENT_DEMO_ENABLED: "YES",
+        PAYMENT_DEMO_APPROVAL_TOKEN: "short",
+        LIVE_PAYMENT_APPROVED: "YES",
+      }),
+    );
+    expect(issues.join()).toContain("at least 16");
+  });
+
+  it("requires explicit live approval when enabled", () => {
+    const issues = issuesOf(() =>
+      loadResourceConfig({
+        ...validResourceEnv(),
+        PAYMENT_DEMO_ENABLED: "YES",
+        PAYMENT_DEMO_APPROVAL_TOKEN: demoToken,
+      }),
+    );
+    expect(issues.join()).toContain("LIVE_PAYMENT_APPROVED");
+  });
+
+  it("loads when both opt-ins and the token are present", () => {
+    const config = loadResourceConfig({
+      ...validResourceEnv(),
+      PAYMENT_DEMO_ENABLED: "YES",
+      PAYMENT_DEMO_APPROVAL_TOKEN: demoToken,
+      LIVE_PAYMENT_APPROVED: "YES",
+    });
+    expect(config.paymentDemoEnabled).toBe(true);
+    expect(config.paymentDemoApprovalToken).toBe(demoToken);
+  });
+
+  it("does not echo the approval token in errors", () => {
+    const issues = issuesOf(() =>
+      loadResourceConfig({
+        ...validResourceEnv(),
+        PAYMENT_DEMO_ENABLED: "YES",
+        PAYMENT_DEMO_APPROVAL_TOKEN: "short",
+        LIVE_PAYMENT_APPROVED: "NO",
+      }),
+    );
+    expect(issues.join()).not.toContain("short");
+  });
+
+  it("requires a server-side payer key in the startup readiness check", () => {
+    const config = loadResourceConfig({
+      ...validResourceEnv(),
+      PAYMENT_DEMO_ENABLED: "YES",
+      PAYMENT_DEMO_APPROVAL_TOKEN: demoToken,
+      LIVE_PAYMENT_APPROVED: "YES",
+    });
+    const issues = issuesOf(() => assertPaymentDemoReady(config, {}));
+    expect(issues.join()).toContain("PAYER_PRIVATE_KEY");
+  });
+
+  it("passes the readiness check with approval and a payer key", () => {
+    const env: Env = {
+      ...validResourceEnv(),
+      PAYMENT_DEMO_ENABLED: "YES",
+      PAYMENT_DEMO_APPROVAL_TOKEN: demoToken,
+      LIVE_PAYMENT_APPROVED: "YES",
+      PAYER_PRIVATE_KEY: demoKey,
+    };
+    const config = loadResourceConfig(env);
+    expect(() => assertPaymentDemoReady(config, env)).not.toThrow();
   });
 });
