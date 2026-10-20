@@ -115,7 +115,11 @@ async function main(): Promise<void> {
     });
   }
 
-  const app = createFacilitatorApp({ signer: handle.signer });
+  const app = createFacilitatorApp({
+    signer: handle.signer,
+    trustProxyHops: config.trustProxyHops,
+    rateLimit: config.rateLimit,
+  });
   const server = app.listen(config.port, () => {
     consoleLogger.info("facilitator listening", {
       port: config.port,
@@ -129,6 +133,11 @@ async function main(): Promise<void> {
       signer: handle.address,
       signerPhrsBalance: formatEther(balance),
       settlementMode: "on-chain eip3009 transferWithAuthorization",
+      rateLimitEnabled: config.rateLimit.enabled,
+      verifyLimitPerMinute: config.rateLimit.verifyPerMinute,
+      settleLimitPerMinute: config.rateLimit.settlePerMinute,
+      maxConcurrentSettlements: config.rateLimit.maxConcurrentSettlements,
+      trustProxyHops: config.trustProxyHops,
     });
   });
 

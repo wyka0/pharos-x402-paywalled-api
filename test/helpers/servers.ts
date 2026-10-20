@@ -70,6 +70,9 @@ export async function createTestStack(): Promise<TestStack> {
   const facilitatorApp = createFacilitatorApp({
     signer: stub.signer,
     logger: silentLogger,
+    // Existing integration tests exercise the x402 protocol, not abuse
+    // controls; dedicated rate-limit tests enable the limiter explicitly.
+    rateLimit: { enabled: false },
   });
   const facilitator = await startApp(facilitatorApp);
 

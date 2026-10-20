@@ -148,6 +148,11 @@ process with a clear error; there is no mainnet or mock fallback.
 | `FACILITATOR_PRIVATE_KEY` | facilitator | one source | 32-byte hex; pays gas; never logged |
 | `FACILITATOR_PRIVATE_KEY_FILE` | facilitator | one source | ignored local file |
 | `FACILITATOR_CONFIRMATION_TIMEOUT_MS` | facilitator | no | default `60000` |
+| `FACILITATOR_RATE_LIMIT_ENABLED` | facilitator | no | default `true`; per-process limiter |
+| `FACILITATOR_VERIFY_LIMIT_PER_MINUTE` | facilitator | no | default `120`; per client IP |
+| `FACILITATOR_SETTLE_LIMIT_PER_MINUTE` | facilitator | no | default `30`; per client IP |
+| `FACILITATOR_MAX_CONCURRENT_SETTLEMENTS` | facilitator | no | default `2`; per process |
+| `FACILITATOR_TRUST_PROXY_HOPS` | facilitator | no | default `0` (ignore XFF); use only the verified hop count, never a boolean |
 | `PAYER_PRIVATE_KEY` | client | live demo only | separate wallet; never logged |
 | `PAYER_PRIVATE_KEY_FILE` | client | live demo only | ignored local file |
 | `API_URL` | client | no | default `http://127.0.0.1:4021` |
@@ -221,6 +226,11 @@ Body: `{ x402Version, paymentPayload, paymentRequirements }`.
 
 `/verify` **never broadcasts** and never claims settlement.
 
+Both `POST` routes use the separate abuse budgets described in
+[Facilitator abuse protection](#facilitator-abuse-protection). An over-budget
+request gets HTTP `429` with `Retry-After`; it does not run verification or
+settlement.
+
 ### `POST /settle`
 
 - Same validation rules.
@@ -234,7 +244,7 @@ Body: `{ x402Version, paymentPayload, paymentRequirements }`.
 
 ## Tests
 
-`npm test` currently runs **83 tests** across 8 files:
+`npm test` currently runs **117 tests** across 10 files:
 
 - `test/config.test.ts` - startup validation, mainnet/token/decimal rejection,
   key-source rules, live-payment gate.
@@ -251,6 +261,9 @@ Body: `{ x402Version, paymentPayload, paymentRequirements }`.
   no protected data on rejection.
 - `test/flow.test.ts` - the official `wrapFetchWithPayment` flow end to end
   against a local stub signer.
+- `test/rate-limit.test.ts` - fixed-window budgets, `429`/`Retry-After`,
+  case/trailing-slash normalization, trusted-proxy behavior, settle concurrency,
+  idempotent retries, malformed and oversized bodies.
 - `test/security.test.ts` - no hardcoded keys, ignore rules, placeholder-only
   `.env.example`, approval gate.
 
@@ -277,12 +290,65 @@ Limitations:
 - The settlement idempotency ledger is in-memory and single-instance. For
   multiple facilitator replicas, replace it with a shared store (for example
   Redis) keyed by the same settlement key.
-- There is no application-level rate limiting; put the public services behind
-  a gateway.
+- The facilitator's limiter is also in-memory and per-instance. It protects the
+  single-replica testnet demo but is not a distributed quota; use an edge or
+  shared limiter for broad public exposure.
+- The exact Railway reverse-proxy hop count cannot be verified from this
+  repository. Keep `FACILITATOR_TRUST_PROXY_HOPS=0` (fail-closed) until a
+  controlled post-deployment check confirms the chain; then set exactly that
+  integer. Setting it above the real count can trust a client-controlled
+  `X-Forwarded-For` entry.
 - The public Atlantic RPC is rate-limited. Production deployments should use a
   dedicated RPC provider.
 - The official docs do not document a USDC faucet. Funding test USDC is an
   operator prerequisite; this project does not guess a faucet URL.
+
+### Facilitator abuse protection
+
+The facilitator applies an in-memory, per-resolved-client-address (`req.ip`)
+fixed-window budget to its two expensive routes, with a separate budget for
+each:
+
+| Route | Default budget | Scope |
+| --- | --- | --- |
+| `POST /verify` | 120 requests / 60 s | per resolved client address, per process |
+| `POST /settle` | 30 requests / 60 s | per resolved client address, per process |
+| `POST /settle` | 2 concurrent requests | global, per process |
+
+- Over-budget requests get HTTP `429`, a `Retry-After` header in whole seconds,
+  `Cache-Control: no-store`, and `{ "error": "rate_limited", "message": "..." }`.
+  The response contains no signer, recipient, payload, or transaction data.
+- The limiter runs before JSON parsing, so rejected attempts are cheap. The body
+  limit remains 256 KB; oversized bodies now return `413` instead of a generic
+  `500`.
+- `FACILITATOR_TRUST_PROXY_HOPS` controls whether `X-Forwarded-For` is trusted.
+  `0` (the default and the safe initial setting) ignores it entirely. That is
+  fail-closed against spoofing, but all requests may then share the platform
+  edge/API address, making the budgets effectively global. A positive integer
+  trusts exactly that many reverse-proxy hops and uses the rightmost
+  proxy-added address. Set it only after verifying the actual hop count; a
+  value higher than the real number can trust a client-controlled entry.
+  Only raise it above `0` when every request is forced through that exact
+  proxy chain and the service cannot be reached directly. Booleans are
+  rejected by configuration validation.
+- Counters live in memory and reset on restart. With one replica, the limits are
+  effective for this demo; they are not global across replicas. For multiple
+  replicas or serious public traffic, use a shared edge/gateway limiter and a
+  shared settlement ledger.
+- Per-IP limits are approximate under NAT (many users share one key) and can be
+  diluted by IPv6 rotation or a large pool of source addresses. They are an
+  abuse brake, not a substitute for signature, amount, recipient, chain, domain,
+  nonce, and replay validation, which remain unchanged.
+- In this topology the facilitator's direct client is the resource API, not the
+  browser. These budgets therefore act as a per-API-instance quota for
+  API-driven payments (effectively global with one API replica). Direct callers
+  to the public facilitator URL are keyed by their own IP only after the exact
+  trusted-proxy hop count is configured; with the safe initial `0`, all callers
+  may share the immediate platform/edge address. Add end-user quotas at the
+  edge or resource API if per-browser fairness is needed.
+- Retries within the budget still use the settlement ledger's idempotency: the
+  same payload returns the original receipt and writes no second transaction.
+  A client that receives `429` should wait for `Retry-After` before retrying.
 
 ### Concrete deployment shape
 
@@ -333,6 +399,14 @@ builds with `npm ci` + `npm run build` (the root `engines` field pins Node >=
 - Set `TRUST_PROXY=true` on the API. Railway's edge always sends
   `X-Forwarded-Proto: https`; without it the 402 `resource.url` would
   advertise `http://`.
+- Keep `FACILITATOR_TRUST_PROXY_HOPS=0` on the first deployment. That is the
+  fail-closed setting: Express ignores `X-Forwarded-For`, so a client cannot
+  spoof its limiter key, though all requests may share Railway's edge/API
+  address and the budgets become effectively global. The exact hop count
+  cannot be verified without a deployment; after a controlled check confirms
+  it, set exactly that integer (for example `1` only if Railway is confirmed
+  to add exactly one trusted hop). Never set it above the verified count or to
+  `true`. The limiter is in-memory, so keep the facilitator at one replica.
 - Deploy order: facilitator first, then the API. The API refuses to start
   until `FACILITATOR_URL` answers `/supported`; Railway's restart policy retries
   it automatically until the facilitator is up.
@@ -358,10 +432,10 @@ builds with `npm ci` + `npm run build` (the root `engines` field pins Node >=
   status page. Its `/verify` and `/settle` endpoints become internet-reachable
   that way but only act on authorizations that a payer signed; keep the service
   on Atlantic Testnet as the network guards require.
-- The API may use either the public URL or the internal
-  `http://<facilitator-service>.railway.internal:<port>` address for
-  `FACILITATOR_URL` (private networking is runtime-only, never available during
-  builds).
+- Use the public HTTPS URL for the API's `FACILITATOR_URL`. The API's `/health`
+  echoes that URL, so a private `*.railway.internal` hostname would leak into a
+  public health response. Private networking is runtime-only and is not used by
+  the Vercel status proxy.
 - The browser never calls either service directly; the Next.js route handlers
   proxy everything server-side, so no CORS or public API keys are needed.
 

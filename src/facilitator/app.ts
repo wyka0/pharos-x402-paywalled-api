@@ -6,16 +6,98 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { consoleLogger, errorMessage, type Logger } from "../logging.js";
 import { CHAIN_ID, NETWORK, NETWORK_NAME, USDC_ADDRESS, USDC_DECIMALS } from "../network.js";
 import { SettlementLedger, settlementKey } from "./ledger.js";
+import { FixedWindowRateLimiter } from "./rate-limit.js";
 import {
   parseFacilitatorRequest,
   precheckRequirements,
   type ParsedFacilitatorRequest,
 } from "./validation.js";
 
+export interface FacilitatorRateLimitOptions {
+  /** Defaults to true. */
+  enabled?: boolean;
+  /** Per-client POST /verify attempts per 60-second window. Default 120. */
+  verifyPerMinute?: number;
+  /** Per-client POST /settle attempts per 60-second window. Default 30. */
+  settlePerMinute?: number;
+  /** Maximum concurrent POST /settle requests in this process. Default 2. */
+  maxConcurrentSettlements?: number;
+  /** Test hook; production uses a 60-second window. */
+  windowMs?: number;
+  /** Test hook; production uses Date.now. */
+  now?: () => number;
+}
+
 export interface FacilitatorAppOptions {
   signer: FacilitatorEvmSigner;
   logger?: Logger;
   ledger?: SettlementLedger;
+  /**
+   * Number of trusted reverse-proxy hops. 0 (the default) ignores
+   * X-Forwarded-For and is the safe initial setting; a positive number trusts
+   * exactly that many hops and must match the verified proxy chain.
+   */
+  trustProxyHops?: number;
+  rateLimit?: FacilitatorRateLimitOptions;
+}
+
+interface ResolvedRateLimitOptions {
+  enabled: boolean;
+  verifyPerMinute: number;
+  settlePerMinute: number;
+  maxConcurrentSettlements: number;
+  windowMs: number;
+  now: () => number;
+}
+
+function resolveRateLimitOptions(
+  options: FacilitatorRateLimitOptions | undefined,
+): ResolvedRateLimitOptions {
+  return {
+    enabled: options?.enabled ?? true,
+    verifyPerMinute: options?.verifyPerMinute ?? 120,
+    settlePerMinute: options?.settlePerMinute ?? 30,
+    maxConcurrentSettlements: options?.maxConcurrentSettlements ?? 2,
+    windowMs: options?.windowMs ?? 60_000,
+    now: options?.now ?? Date.now,
+  };
+}
+
+/**
+ * Express matches routes case-insensitively and permits a trailing slash by
+ * default, so normalize both before selecting a limiter; otherwise /VERIFY/ or
+ * /verify/ would bypass the budget.
+ */
+function normalizedPostPath(req: Request): string {
+  const path = req.path.toLowerCase().replace(/\/+$/, "");
+  return path.length > 0 ? path : "/";
+}
+
+function isPost(req: Request): boolean {
+  // Express matches methods case-insensitively; normalize before deciding
+  // whether a request is in scope for the limiter.
+  return req.method.toUpperCase() === "POST";
+}
+
+function rateLimitKey(req: Request): string {
+  return req.ip ?? req.socket.remoteAddress ?? "unknown";
+}
+
+function rejectRateLimited(res: Response, retryAfterSeconds: number, message?: string): void {
+  res.setHeader("Retry-After", String(Math.max(1, Math.ceil(retryAfterSeconds))));
+  res.setHeader("Cache-Control", "no-store");
+  res.status(429).json({
+    error: "rate_limited",
+    message: message ?? "Too many requests. Retry after the indicated delay.",
+  });
+}
+
+function bodyParserErrorType(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("type" in error)) {
+    return undefined;
+  }
+  const type = (error as { type?: unknown }).type;
+  return typeof type === "string" ? type : undefined;
 }
 
 function rejectVerify(res: Response, reason: string, message: string): void {
@@ -55,6 +137,71 @@ export function createFacilitatorApp(options: FacilitatorAppOptions): express.Ex
 
   const app = express();
   app.disable("x-powered-by");
+  // Numeric trust proxy: 0 ignores client-supplied X-Forwarded-For entirely;
+  // N trusts exactly N reverse-proxy hops. Never pass a boolean here, because
+  // that would trust the leftmost, client-controlled address.
+  app.set("trust proxy", options.trustProxyHops ?? 0);
+
+  const limits = resolveRateLimitOptions(options.rateLimit);
+  if (limits.enabled) {
+    const verifyLimiter = new FixedWindowRateLimiter(
+      limits.verifyPerMinute,
+      limits.windowMs,
+      limits.now,
+    );
+    const settleLimiter = new FixedWindowRateLimiter(
+      limits.settlePerMinute,
+      limits.windowMs,
+      limits.now,
+    );
+
+    // Run before JSON parsing so rejected attempts cost little. Verify and
+    // settle have separate budgets: a payment needs one of each.
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (!isPost(req)) {
+        next();
+        return;
+      }
+      const path = normalizedPostPath(req);
+      const limiter =
+        path === "/verify" ? verifyLimiter : path === "/settle" ? settleLimiter : undefined;
+      if (limiter === undefined) {
+        next();
+        return;
+      }
+      const decision = limiter.check(rateLimitKey(req));
+      if (!decision.allowed) {
+        rejectRateLimited(res, decision.retryAfterSeconds);
+        return;
+      }
+      next();
+    });
+
+    // Bound in-flight settlements in this single-replica process to avoid
+    // nonce/RPC bursts. The settlement ledger still provides idempotency.
+    let inFlightSettlements = 0;
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (!isPost(req) || normalizedPostPath(req) !== "/settle") {
+        next();
+        return;
+      }
+      if (inFlightSettlements >= limits.maxConcurrentSettlements) {
+        rejectRateLimited(res, 1, "Too many concurrent settlements. Retry shortly.");
+        return;
+      }
+      inFlightSettlements += 1;
+      let released = false;
+      const release = (): void => {
+        if (released) return;
+        released = true;
+        inFlightSettlements -= 1;
+      };
+      res.once("finish", release);
+      res.once("close", release);
+      next();
+    });
+  }
+
   app.use(express.json({ limit: "256kb", strict: true }));
 
   app.get("/health", (_req: Request, res: Response) => {
@@ -150,15 +297,18 @@ export function createFacilitatorApp(options: FacilitatorAppOptions): express.Ex
 
   app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
     void _next;
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "type" in error &&
-      (error as { type?: unknown }).type === "entity.parse.failed"
-    ) {
+    const bodyErrorType = bodyParserErrorType(error);
+    if (bodyErrorType === "entity.parse.failed") {
       res.status(400).json({
         error: "invalid_json",
         message: "Request body must be valid JSON.",
+      });
+      return;
+    }
+    if (bodyErrorType === "entity.too.large") {
+      res.status(413).json({
+        error: "payload_too_large",
+        message: "Request body exceeds the 256 KB limit.",
       });
       return;
     }

@@ -138,6 +138,13 @@ describe("facilitator configuration", () => {
     expect(config.port).toBe(4022);
     expect(config.rpcUrl).toBe("https://atlantic.dplabs-internal.com");
     expect(config.confirmationTimeoutMs).toBe(60_000);
+    expect(config.trustProxyHops).toBe(0);
+    expect(config.rateLimit).toEqual({
+      enabled: true,
+      verifyPerMinute: 120,
+      settlePerMinute: 30,
+      maxConcurrentSettlements: 2,
+    });
   });
 
   it("falls back to Railway's injected PORT when FACILITATOR_PORT is unset", () => {
@@ -196,6 +203,52 @@ describe("facilitator configuration", () => {
       loadFacilitatorConfig({ FACILITATOR_PRIVATE_KEY_FILE: join(tempDir, "missing.key") }),
     );
     expect(issues.join()).toContain("could not read");
+  });
+
+  it("parses explicit limiter and trusted-proxy overrides", () => {
+    const config = loadFacilitatorConfig({
+      FACILITATOR_PRIVATE_KEY: key,
+      FACILITATOR_RATE_LIMIT_ENABLED: "false",
+      FACILITATOR_VERIFY_LIMIT_PER_MINUTE: "240",
+      FACILITATOR_SETTLE_LIMIT_PER_MINUTE: "60",
+      FACILITATOR_MAX_CONCURRENT_SETTLEMENTS: "1",
+      FACILITATOR_TRUST_PROXY_HOPS: "1",
+    });
+    expect(config.rateLimit).toEqual({
+      enabled: false,
+      verifyPerMinute: 240,
+      settlePerMinute: 60,
+      maxConcurrentSettlements: 1,
+    });
+    expect(config.trustProxyHops).toBe(1);
+  });
+
+  it("rejects boolean or malformed trusted-proxy settings by name", () => {
+    for (const value of ["true", "1.5", "-1", "11"]) {
+      const issues = issuesOf(() =>
+        loadFacilitatorConfig({
+          FACILITATOR_PRIVATE_KEY: key,
+          FACILITATOR_TRUST_PROXY_HOPS: value,
+        }),
+      );
+      expect(issues.join()).toContain("FACILITATOR_TRUST_PROXY_HOPS");
+    }
+  });
+
+  it("rejects limiter values outside their supported ranges by name", () => {
+    const cases: Array<[string, string]> = [
+      ["FACILITATOR_VERIFY_LIMIT_PER_MINUTE", "0"],
+      ["FACILITATOR_VERIFY_LIMIT_PER_MINUTE", "6001"],
+      ["FACILITATOR_SETTLE_LIMIT_PER_MINUTE", "0"],
+      ["FACILITATOR_MAX_CONCURRENT_SETTLEMENTS", "33"],
+      ["FACILITATOR_RATE_LIMIT_ENABLED", "maybe"],
+    ];
+    for (const [name, value] of cases) {
+      const issues = issuesOf(() =>
+        loadFacilitatorConfig({ FACILITATOR_PRIVATE_KEY: key, [name]: value }),
+      );
+      expect(issues.join()).toContain(name);
+    }
   });
 });
 

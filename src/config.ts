@@ -42,11 +42,20 @@ export interface ResourceConfig {
   readonly paymentDemoApiUrl?: string;
 }
 
+export interface FacilitatorRateLimitConfig {
+  readonly enabled: boolean;
+  readonly verifyPerMinute: number;
+  readonly settlePerMinute: number;
+  readonly maxConcurrentSettlements: number;
+}
+
 export interface FacilitatorConfig {
   readonly privateKey: Hex;
   readonly rpcUrl: string;
   readonly port: number;
   readonly confirmationTimeoutMs: number;
+  readonly trustProxyHops: number;
+  readonly rateLimit: FacilitatorRateLimitConfig;
 }
 
 export interface PayerConfig {
@@ -99,6 +108,25 @@ function parseBoolean(env: Env, name: string, fallback: boolean, issues: string[
   if (["0", "false", "no", "off"].includes(raw)) return false;
   issues.push(`${name}: must be one of true/false/1/0/yes/no`);
   return fallback;
+}
+
+/**
+ * Trusted reverse-proxy hops for Express. A boolean is deliberately rejected:
+ * `trust proxy = true` would trust the leftmost, client-supplied
+ * X-Forwarded-For address. 0 disables forwarded-header trust and is the
+ * fail-safe default; set only the verified hop count.
+ */
+function parseProxyHops(env: Env, name: string, fallback: number, issues: string[]): number {
+  const raw = readOptional(env, name);
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > 10) {
+    issues.push(
+      `${name}: must be an integer between 0 and 10 (trusted proxy hops; 0 disables forwarded-header trust)`,
+    );
+    return fallback;
+  }
+  return value;
 }
 
 function parseAddress(value: string | undefined, name: string, issues: string[]): Address | undefined {
@@ -336,12 +364,39 @@ export function loadFacilitatorConfig(env: Env = process.env): FacilitatorConfig
     60_000,
     issues,
   );
+  // Limits are per process and per client IP. Verify is cheaper than settle and
+  // a normal payment spends one of each, so settle gets the tighter budget.
+  const rateLimit: FacilitatorRateLimitConfig = {
+    enabled: parseBoolean(env, "FACILITATOR_RATE_LIMIT_ENABLED", true, issues),
+    verifyPerMinute: parsePositiveInteger(
+      env,
+      "FACILITATOR_VERIFY_LIMIT_PER_MINUTE",
+      120,
+      issues,
+      6_000,
+    ),
+    settlePerMinute: parsePositiveInteger(
+      env,
+      "FACILITATOR_SETTLE_LIMIT_PER_MINUTE",
+      30,
+      issues,
+      6_000,
+    ),
+    maxConcurrentSettlements: parsePositiveInteger(
+      env,
+      "FACILITATOR_MAX_CONCURRENT_SETTLEMENTS",
+      2,
+      issues,
+      32,
+    ),
+  };
+  const trustProxyHops = parseProxyHops(env, "FACILITATOR_TRUST_PROXY_HOPS", 0, issues);
 
   if (issues.length > 0 || privateKey === undefined) {
     throw new ConfigError(issues);
   }
 
-  return { privateKey, rpcUrl, port, confirmationTimeoutMs };
+  return { privateKey, rpcUrl, port, confirmationTimeoutMs, trustProxyHops, rateLimit };
 }
 
 /**
