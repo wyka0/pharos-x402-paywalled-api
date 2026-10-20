@@ -320,7 +320,16 @@ export function loadFacilitatorConfig(env: Env = process.env): FacilitatorConfig
     issues,
   );
   const rpcUrl = parseHttpUrl(readOptional(env, "RPC_URL"), "RPC_URL", DEFAULT_RPC_URL, issues);
-  const port = parsePort(env, "FACILITATOR_PORT", 4022, issues);
+  // Railway injects PORT into every service and health-checks that same port,
+  // so use it as the fallback. An explicit FACILITATOR_PORT stays authoritative:
+  // a shared local .env also carries the API's PORT, and the facilitator must
+  // never silently bind the API's port.
+  const port = parsePort(
+    env,
+    "FACILITATOR_PORT",
+    parsePort(env, "PORT", 4022, issues),
+    issues,
+  );
   const confirmationTimeoutMs = parsePositiveInteger(
     env,
     "FACILITATOR_CONFIRMATION_TIMEOUT_MS",

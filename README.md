@@ -311,6 +311,73 @@ Reviewers can then call `https://api.example.com/data`, receive the 402
 challenge, and use the payment client against that URL. Keep the deployment on
 Atlantic Testnet and monitor the facilitator's PHRS balance.
 
+### Railway (facilitator and resource API)
+
+Deploy both services from the repository root as two Railway services. Railpack
+builds with `npm ci` + `npm run build` (the root `engines` field pins Node >=
+20.19), then runs the configured start command:
+
+| Setting | Facilitator service | Resource API service |
+| --- | --- | --- |
+| Build command | `npm run build` | `npm run build` |
+| Start command | `node dist/src/facilitator/server.js` | `node dist/src/resource/server.js` |
+| Healthcheck path | `/health` | `/health` |
+| Replicas | 1 - do not scale out | 1 - do not scale out |
+
+- Railway injects `PORT` into each service and health-checks that same port.
+  The API reads `PORT` directly; the facilitator uses it as a fallback when
+  `FACILITATOR_PORT` is unset. **Do not set `FACILITATOR_PORT` on Railway**
+  (when both are set, `FACILITATOR_PORT` stays authoritative).
+- Leave `NODE_ENV` unset: setting it to `production` makes `npm ci` skip
+  devDependencies (including TypeScript) and the build fails.
+- Set `TRUST_PROXY=true` on the API. Railway's edge always sends
+  `X-Forwarded-Proto: https`; without it the 402 `resource.url` would
+  advertise `http://`.
+- Deploy order: facilitator first, then the API. The API refuses to start
+  until `FACILITATOR_URL` answers `/supported`; Railway's restart policy retries
+  it automatically until the facilitator is up.
+- Keep exactly one replica of each service until the settlement ledger has
+  shared storage (see Limitations). Do not enable horizontal scaling or
+  multi-region replicas.
+- `/health` on both services is static and never calls the testnet RPC, so a
+  rate-limited public RPC cannot fail a Railway healthcheck. Startup does run
+  read-only RPC checks (chain ID, token metadata); if the RPC is rate-limited
+  at boot the process exits and Railway restarts it.
+- To prevent automatic deploys before approval, disconnect the source branch
+  in the service settings (Railway auto-deploys only from a connected branch),
+  or create the services only when the deployment is approved.
+- Leave `PAYMENT_DEMO_ENABLED` and `LIVE_PAYMENT_APPROVED` unset on both
+  services until a live payment is explicitly approved.
+
+### Vercel dashboard
+
+- Root Directory `web`. Set the server-only variables `API_ORIGIN` and
+  `FACILITATOR_ORIGIN` to the public HTTPS URLs of the two Railway services.
+- Vercel cannot reach Railway private hostnames (`*.railway.internal`), so the
+  facilitator needs a public HTTPS domain (Railway-provided or custom) for the
+  status page. Its `/verify` and `/settle` endpoints become internet-reachable
+  that way but only act on authorizations that a payer signed; keep the service
+  on Atlantic Testnet as the network guards require.
+- The API may use either the public URL or the internal
+  `http://<facilitator-service>.railway.internal:<port>` address for
+  `FACILITATOR_URL` (private networking is runtime-only, never available during
+  builds).
+- The browser never calls either service directly; the Next.js route handlers
+  proxy everything server-side, so no CORS or public API keys are needed.
+
+### Funding check (read-only, public addresses only)
+
+`npm run balances` accepts an address, never a key, and prints the PHRS native
+balance (facilitator gas) and the test USDC balance (payer):
+
+```powershell
+npm run balances -- 0xYourPublicAddress
+```
+
+It performs two read-only RPC calls. The facilitator signer address is printed
+at startup (and appears in `GET /health` as `signers`); the payer address comes
+from the payer wallet.
+
 ## Live payment evidence
 
 No live payment has been executed. `npm run demo` is deliberately blocked

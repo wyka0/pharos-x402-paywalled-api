@@ -4,6 +4,15 @@ import type { PaymentDemoResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+/**
+ * The upstream Express API performs a real testnet settlement (facilitator
+ * verification, on-chain broadcast, receipt confirmation) before answering.
+ * This route bounds that wait with the 120s AbortSignal below, so the function
+ * must be allowed to outlive it slightly in order to return its own JSON error
+ * instead of being killed by the platform. Vercel Hobby and Pro allow up to
+ * 300s (Fluid Compute); no plan limit is exceeded.
+ */
+export const maxDuration = 130;
 
 interface DemoBody {
   route?: string;

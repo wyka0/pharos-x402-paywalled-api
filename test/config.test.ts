@@ -140,6 +140,27 @@ describe("facilitator configuration", () => {
     expect(config.confirmationTimeoutMs).toBe(60_000);
   });
 
+  it("falls back to Railway's injected PORT when FACILITATOR_PORT is unset", () => {
+    const config = loadFacilitatorConfig({ FACILITATOR_PRIVATE_KEY: key, PORT: "8080" });
+    expect(config.port).toBe(8080);
+  });
+
+  it("keeps FACILITATOR_PORT authoritative over an injected PORT", () => {
+    const config = loadFacilitatorConfig({
+      FACILITATOR_PRIVATE_KEY: key,
+      PORT: "8080",
+      FACILITATOR_PORT: "4900",
+    });
+    expect(config.port).toBe(4900);
+  });
+
+  it("rejects an invalid injected PORT and reports it by name", () => {
+    const issues = issuesOf(() =>
+      loadFacilitatorConfig({ FACILITATOR_PRIVATE_KEY: key, PORT: "70000" }),
+    );
+    expect(issues.join()).toContain("PORT");
+  });
+
   it("loads a key from an ignored file", () => {
     const keyFile = join(tempDir, "facilitator.key");
     writeFileSync(keyFile, `${key}\n`, "utf8");
