@@ -27,6 +27,7 @@ import {
   ROUTE_DEFINITIONS,
 } from "./pricing.js";
 import { createPaymentDemoRouter, type PaymentDemoDependencies } from "./demo-route.js";
+import { createProjectPaywall } from "./paywall.js";
 
 export interface ResourceAppOptions extends ResourceConfig {
   logger?: Logger;
@@ -111,7 +112,10 @@ export async function createResourceApp(options: ResourceAppOptions): Promise<ex
 
   // The free health route is registered before the payment middleware.
   app.use(
-    paymentMiddlewareFromHTTPServer(httpServer, undefined, undefined, false),
+    // The third argument replaces the SDK's fallback browser page with the
+    // project paywall: it decodes and displays the actual 402 challenge instead
+    // of telling developers to install @x402/paywall. JSON clients are unaffected.
+    paymentMiddlewareFromHTTPServer(httpServer, undefined, createProjectPaywall(), false),
   );
 
   app.get("/data", (_req: Request, res: Response) => {

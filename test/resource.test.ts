@@ -245,6 +245,64 @@ describe("invalid and underpaid payments", () => {
   });
 });
 
+describe("browser paywall page", () => {
+  const browserHeaders = { accept: "text/html", "user-agent": "Mozilla/5.0 (test)" };
+
+  it("returns a branded HTML paywall with the decoded challenge for /data", async () => {
+    const result = await get("/data", browserHeaders);
+    expect(result.status).toBe(402);
+    expect(result.headers.get("content-type")).toContain("text/html");
+    // The machine-readable challenge is still present for any client.
+    requiredHeader(result.headers);
+    const body = String(result.body);
+    expect(body).toContain("402");
+    expect(body).toContain("Payment Required");
+    expect(body).toContain("eip155:688689");
+    expect(body).toContain(USDC_ADDRESS);
+    expect(body).toContain("10000 atomic");
+    expect(body).toContain("0.01");
+    expect(body).toContain(stack.payTo);
+    expect(body).toContain("PAYMENT-REQUIRED");
+    expect(body).toContain("PAYMENT-SIGNATURE");
+    // The SDK fallback must be fully replaced.
+    expect(body).not.toContain("@x402/paywall");
+    // No scripts: the page is static HTML only.
+    expect(body).not.toContain("<script");
+  });
+
+  it("shows the lower /api/info price in the HTML challenge", async () => {
+    const result = await get("/api/info", browserHeaders);
+    expect(result.status).toBe(402);
+    expect(result.headers.get("content-type")).toContain("text/html");
+    const body = String(result.body);
+    expect(body).toContain("5000 atomic");
+    expect(body).toContain("0.005");
+    expect(body).toContain(stack.payTo);
+    // No protected payload may leak into the HTML challenge: the paid dataset
+    // marker must never appear (the page title legitimately names the product).
+    expect(body).not.toContain("pharos-atlantic-sample");
+  });
+
+  it("escapes HTML-sensitive characters in the resource URL", async () => {
+    const result = await get(
+      "/data?probe=%3Cscript%3Ealert(1)%3C%2Fscript%3E",
+      browserHeaders,
+    );
+    expect(result.status).toBe(402);
+    expect(result.headers.get("content-type")).toContain("text/html");
+    // Whatever the request target echoes back, raw script content never
+    // appears anywhere in the page: every interpolated value is escaped.
+    expect(String(result.body)).not.toContain("<script");
+  });
+
+  it("leaves the free /health route untouched for browsers", async () => {
+    const result = await get("/health", browserHeaders);
+    expect(result.status).toBe(200);
+    expect(result.headers.get("content-type")).toContain("application/json");
+    expect(result.headers.get(PAYMENT_REQUIRED_HEADER)).toBeNull();
+  });
+});
+
 describe("routing", () => {
   it("returns a JSON 404 for unknown free paths", async () => {
     const result = await get("/nope");
